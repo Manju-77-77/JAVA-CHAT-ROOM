@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple WebSocket Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #messages {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        #status {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"] {
+            padding: 5px;
+            width: 200px;
+        }
+
+        button {
+            padding: 5px 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="status">Disconnected</div>
+
+    <div id="loginArea">
+        <input type="text" id="username" placeholder="Enter username">
+        <button onclick="connect()">Connect</button>
+    </div>
+
+    <div id="chatArea" style="display: none;">
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Type a message">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let ws;
+        let username;
+
+        function addMessage(text) {
+            const messages = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = text;
+            messages.appendChild(messageElement);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function connect() {
+            username = document.getElementById('username').value.trim();
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+
+            document.getElementById('status').textContent = 'Connecting...';
+
+            // Create WebSocket connection
+            ws = new WebSocket('ws://localhost:8887');
+
+            ws.onopen = function () {
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('loginArea').style.display = 'none';
+                document.getElementById('chatArea').style.display = 'block';
+                // Send username as first message
+                ws.send(username);
+                addMessage('Connected to chat server');
+            };
+
+            ws.onclose = function () {
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('loginArea').style.display = 'block';
+                document.getElementById('chatArea').style.display = 'none';
+                addMessage('Disconnected from chat server');
+            };
+
+            ws.onerror = function (error) {
+                document.getElementById('status').textContent = 'Error connecting';
+                console.error('WebSocket error:', error);
+                addMessage('Error connecting to server');
+            };
+
+            ws.onmessage = function (event) {
+                addMessage(event.data);
+            };
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected to server');
+                return;
+            }
+
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+
+            if (message) {
+                ws.send(message);
+                messageInput.value = '';
+            }
+        }
+
+        // Allow sending with Enter key
+        document.getElementById('messageInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+
+</html>
