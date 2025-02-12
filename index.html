@@ -1,72 +1,357 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple WebSocket Chat</title>
+    <title>Interactive Chat Room</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
             padding: 20px;
-            max-width: 800px;
+        }
+
+        .container {
+            max-width: 900px;
             margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideIn 0.5s ease;
+        }
+
+        .chat-header {
+            background: #4a5568;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .online-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+        }
+
+        .status-dot.offline {
+            background: #f56565;
         }
 
         #messages {
-            border: 1px solid #ccc;
-            padding: 10px;
-            height: 300px;
+            height: 400px;
             overflow-y: auto;
-            margin-bottom: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        #status {
-            color: #666;
-            margin-bottom: 10px;
+        .message {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            animation: messageSlide 0.3s ease;
+            position: relative;
+        }
+
+        .message.received {
+            background: #e2e8f0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.sent {
+            background: #4299e1;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message .sender {
+            font-size: 12px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .system-message {
+            text-align: center;
+            color: #718096;
+            font-size: 14px;
+            padding: 8px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: #f7fafc;
+            display: flex;
+            gap: 12px;
         }
 
         input[type="text"] {
-            padding: 5px;
-            width: 200px;
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #4299e1;
         }
 
         button {
-            padding: 5px 10px;
-            background: #4CAF50;
-            color: white;
+            padding: 12px 24px;
             border: none;
+            border-radius: 8px;
+            background: #4299e1;
+            color: white;
+            font-weight: 600;
             cursor: pointer;
+            transition: background 0.2s;
         }
 
         button:hover {
-            background: #45a049;
+            background: #3182ce;
+        }
+
+        button.end-chat {
+            background: #f56565;
+        }
+
+        button.end-chat:hover {
+            background: #e53e3e;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes messageSlide {
+            from {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        #loginArea {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            animation: slideIn 0.5s ease;
+            max-width: 400px;
+            margin: 40px auto;
+        }
+
+        #loginArea h2 {
+            margin-bottom: 20px;
+            color: #2d3748;
+            animation: colorChange 3s infinite;
+        }
+
+        @keyframes colorChange {
+            0% { color: #667eea; }
+            50% { color: #764ba2; }
+            100% { color: #667eea; }
+        }
+
+        #loginArea input {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        #loginArea button {
+            width: 100%;
+        }
+
+        .active-users {
+            color: #718096;
+            font-size: 14px;
+            margin-left: 20px;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown:hover .dropbtn {
+            background-color: #3e8e41;
+        }
+
+        .emoji-picker {
+            position: absolute;
+            bottom: 60px;
+            right: 20px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .emoji-picker span {
+            cursor: pointer;
+            font-size: 20px;
+            margin: 5px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: #48bb78;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .file-label:hover {
+            background: #38a169;
         }
     </style>
 </head>
-
 <body>
-    <div id="status">Disconnected</div>
-
     <div id="loginArea">
+        <h2>Join Chat Room</h2>
         <input type="text" id="username" placeholder="Enter username">
-        <button onclick="connect()">Connect</button>
+        <button onclick="connect()">Join Chat</button>
     </div>
 
-    <div id="chatArea" style="display: none;">
+    <div id="chatArea" style="display: none;" class="container">
+        <div class="chat-header">
+            <h2>Chat Room</h2>
+            <div class="online-status">
+                <div class="status-dot"></div>
+                <span id="status">Connected</span>
+                <div class="dropdown">
+                    <span class="active-users" id="activeUsers">Users: 0</span>
+                    <div class="dropdown-content" id="userList"></div>
+                </div>
+            </div>
+            <button class="end-chat" onclick="endChat()">End Chat</button>
+        </div>
         <div id="messages"></div>
-        <input type="text" id="messageInput" placeholder="Type a message">
-        <button onclick="sendMessage()">Send</button>
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button onclick="sendMessage()">Send</button>
+            <label for="fileInput" class="file-label">📁 File</label>
+            <input type="file" id="fileInput" class="file-input">
+            <button onclick="toggleEmojiPicker()">😀</button>
+        </div>
+        <div class="emoji-picker" id="emojiPicker">
+            <span onclick="insertEmoji('😀')">😀</span>
+            <span onclick="insertEmoji('😁')">😁</span>
+            <span onclick="insertEmoji('😂')">😂</span>
+            <span onclick="insertEmoji('🤣')">🤣</span>
+            <span onclick="insertEmoji('😊')">😊</span>
+            <span onclick="insertEmoji('😍')">😍</span>
+            <span onclick="insertEmoji('😎')">😎</span>
+            <span onclick="insertEmoji('😜')">😜</span>
+            <span onclick="insertEmoji('🤔')">🤔</span>
+            <span onclick="insertEmoji('🙄')">🙄</span>
+        </div>
     </div>
 
     <script>
         let ws;
         let username;
 
-        function addMessage(text) {
+        function addMessage(text, type = 'received', sender = '', isFile = false) {
             const messages = document.getElementById('messages');
             const messageElement = document.createElement('div');
-            messageElement.textContent = text;
+            
+            if (type === 'system') {
+                messageElement.className = 'system-message';
+                messageElement.textContent = text;
+            } else {
+                messageElement.className = `message ${type}`;
+                if (sender) {
+                    const senderElement = document.createElement('div');
+                    senderElement.className = 'sender';
+                    senderElement.textContent = sender;
+                    messageElement.appendChild(senderElement);
+                }
+                const contentElement = document.createElement('div');
+                if (isFile) {
+                    const fileLink = document.createElement('a');
+                    fileLink.href = text;
+                    fileLink.textContent = 'Download File';
+                    fileLink.download = text.split('/').pop();
+                    contentElement.appendChild(fileLink);
+                } else {
+                    contentElement.textContent = text;
+                }
+                messageElement.appendChild(contentElement);
+            }
+            
             messages.appendChild(messageElement);
             messages.scrollTop = messages.scrollHeight;
         }
@@ -78,36 +363,84 @@
                 return;
             }
 
-            document.getElementById('status').textContent = 'Connecting...';
+            updateStatus('Connecting...', false);
 
-            // Create WebSocket connection
             ws = new WebSocket('ws://localhost:8887');
 
-            ws.onopen = function () {
-                document.getElementById('status').textContent = 'Connected';
+            ws.onopen = function() {
+                updateStatus('Connected', true);
                 document.getElementById('loginArea').style.display = 'none';
                 document.getElementById('chatArea').style.display = 'block';
-                // Send username as first message
-                ws.send(username);
-                addMessage('Connected to chat server');
+                ws.send(JSON.stringify({
+                    type: 'join',
+                    username: username
+                }));
+                addMessage(`Welcome to the chat room, ${username}!`, 'system');
             };
 
-            ws.onclose = function () {
-                document.getElementById('status').textContent = 'Disconnected';
+            ws.onclose = function() {
+                updateStatus('Disconnected', false);
                 document.getElementById('loginArea').style.display = 'block';
                 document.getElementById('chatArea').style.display = 'none';
-                addMessage('Disconnected from chat server');
+                addMessage('Disconnected from chat server', 'system');
             };
 
-            ws.onerror = function (error) {
-                document.getElementById('status').textContent = 'Error connecting';
+            ws.onerror = function(error) {
+                updateStatus('Error connecting', false);
                 console.error('WebSocket error:', error);
-                addMessage('Error connecting to server');
+                addMessage('Error connecting to server', 'system');
             };
 
-            ws.onmessage = function (event) {
-                addMessage(event.data);
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    switch(data.type) {
+                        case 'join':
+                            addMessage(`${data.username} joined the chat`, 'system');
+                            updateActiveUsers(data.activeUsers);
+                            updateUserList(data.userList);
+                            break;
+                        case 'leave':
+                            addMessage(`${data.username} left the chat`, 'system');
+                            updateActiveUsers(data.activeUsers);
+                            updateUserList(data.userList);
+                            break;
+                        case 'message':
+                            addMessage(data.message, 
+                                     data.username === username ? 'sent' : 'received',
+                                     data.username);
+                            break;
+                        case 'file':
+                            addMessage(data.fileUrl, 
+                                     data.username === username ? 'sent' : 'received',
+                                     data.username, true);
+                            break;
+                    }
+                } catch (e) {
+                    console.error('Error parsing message:', e);
+                }
             };
+        }
+
+        function updateStatus(text, connected) {
+            const status = document.getElementById('status');
+            const dot = document.querySelector('.status-dot');
+            status.textContent = text;
+            dot.classList.toggle('offline', !connected);
+        }
+
+        function updateActiveUsers(count) {
+            document.getElementById('activeUsers').textContent = `Users: ${count}`;
+        }
+
+        function updateUserList(userList) {
+            const userListElement = document.getElementById('userList');
+            userListElement.innerHTML = '';
+            userList.forEach(user => {
+                const userElement = document.createElement('a');
+                userElement.textContent = user;
+                userListElement.appendChild(userElement);
+            });
         }
 
         function sendMessage() {
@@ -120,18 +453,69 @@
             const message = messageInput.value.trim();
 
             if (message) {
-                ws.send(message);
+                ws.send(JSON.stringify({
+                    type: 'message',
+                    username: username,
+                    message: message
+                }));
                 messageInput.value = '';
             }
         }
 
-        // Allow sending with Enter key
-        document.getElementById('messageInput').addEventListener('keypress', function (e) {
+        function sendFile(file) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected to server');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                ws.send(JSON.stringify({
+                    type: 'file',
+                    username: username,
+                    fileUrl: event.target.result
+                }));
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function toggleEmojiPicker() {
+            const emojiPicker = document.getElementById('emojiPicker');
+            emojiPicker.style.display = emojiPicker.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function insertEmoji(emoji) {
+            const messageInput = document.getElementById('messageInput');
+            messageInput.value += emoji;
+            toggleEmojiPicker();
+        }
+
+        function endChat() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'leave',
+                    username: username
+                }));
+                ws.close();
+            }
+        }
+
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 sendMessage();
             }
         });
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                sendFile(file);
+            }
+        });
+
+        window.addEventListener('beforeunload', function() {
+            endChat();
+        });
     </script>
 </body>
-
 </html>

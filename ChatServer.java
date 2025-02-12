@@ -1,51 +1,89 @@
+package com.chatapp.server;
+
 import java.net.InetSocketAddress;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.server.WebSocketServer;
+import org.json.JSONObject;
 
 public class ChatServer extends WebSocketServer {
-    private Set<WebSocket> conns;
-    private Set<String> usernames;
+    private Map<WebSocket, String> usernames;
 
     public ChatServer() {
         super(new InetSocketAddress(8887));
-        conns = new HashSet<>();
-        usernames = new HashSet<>();
+        usernames = new HashMap<>();
     }
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        conns.add(conn);
-        System.out.println("New connection from " + conn.getRemoteSocketAddress());
+        super.onOpen(conn, handshake);
     }
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        conns.remove(conn);
-        System.out.println("Closed connection to " + conn.getRemoteSocketAddress());
+        String username = usernames.get(conn);
+        if (username != null) {
+            broadcastMessage("leave", username, null, null);
+            usernames.remove(conn);
+        }
+        super.onClose(conn, code, reason, remote);
     }
 
     @Override
     public void onMessage(WebSocket conn, String message) {
-        System.out.println("Received message from " + conn.getRemoteSocketAddress() + ": " + message);
+        try {
+            JSONObject jsonMessage = new JSONObject(message);
+            String type = jsonMessage.getString("type");
+            String username = jsonMessage.getString("username");
 
-        // Broadcast message to all connected clients
-        for (WebSocket client : conns) {
-            client.send(message);
+            switch (type) {
+                case "join":
+                    handleJoin(conn, username);
+                    break;
+                case "message":
+                    handleChatMessage(username, jsonMessage.getString("message"));
+                    break;
+                case "file":
+                    handleFileMessage(username, jsonMessage.getString("fileUrl"));
+                    break;
+                case "leave":
+                    handleLeave(conn, username);
+                    break;
+            }
+        } catch (Exception e) {
+            System.out.println("Error processing message: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    @Override
-    public void onError(WebSocket conn, Exception ex) {
-        System.out.println("Error occurred on connection " + conn);
-        ex.printStackTrace();
+    private void handleJoin(WebSocket conn, String username) {
+        usernames.put(conn, username);
+        broadcastMessage("join", username, null, null);
     }
 
-    public static void main(String[] args) {
-        ChatServer server = new ChatServer();
-        server.start();
-        System.out.println("ChatServer started on port: 8887");
+    private void handleChatMessage(String username, String message) {
+        broadcastMessage("message", username, message, null);
+    }
+
+    private void handleFileMessage(String username, String fileUrl) {
+        broadcastMessage("file", username, null, fileUrl);
+    }
+
+    private void handleLeave(WebSocket conn, String username) {
+        usernames.remove(conn);
+        broadcastMessage("leave", username, null, null);
+    }
+
+    private void broadcastMessage(String type, String username, String message, String fileUrl) {
+        JSONObject jsonMessage = new JSONObject();
+        jsonMessage.put("type", type);
+        jsonMessage.put("username", username);
+        jsonMessage.put("message", message);
+        jsonMessage.put("fileUrl", fileUrl);
+        jsonMessage.put("activeUsers", usernames.size());
+        jsonMessage.put("userList", usernames.values());
+        broadcast(jsonMessage.toString());
     }
 }
